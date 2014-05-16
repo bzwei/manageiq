@@ -16,6 +16,9 @@ describe EmsEvent do
       mock_raw_event_vm(raw_event)
       mock_raw_event_host(raw_event)
 
+      miq_event_id = 100
+      EmsEventMap.should_receive(:map_miq_event_id).with("GeneralUserEvent").and_return(miq_event_id)
+
       EmsEvent.add_vc(@ems.id, raw_event)
 
       EmsEvent.count.should == 1
@@ -36,6 +39,8 @@ describe EmsEvent do
         :vm_location       => @vm1.location,
         :host_id           => @host.id,
         :host_name         => @host.hostname,
+
+        :miq_event_id      => miq_event_id,
       )
     end
 

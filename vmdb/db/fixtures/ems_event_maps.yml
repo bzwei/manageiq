@@ -1,0 +1,8 @@
+- :id: 1
+  :ems_event_type: USER_ADD_VM
+  :miq_event_id: 54
+  :system: true
+- :id: 2
+  :ems_event_type: VmCreatedEvent
+  :miq_event_id: 54
+  :system: true

@@ -23,6 +23,7 @@ class EmsEvent < ActiveRecord::Base
   belongs_to :vdi_endpoint_device
 
   belongs_to :service
+  belongs_to :miq_event
 
   include_concern 'Automate'
   include ReportableMixin
@@ -260,16 +261,19 @@ class EmsEvent < ActiveRecord::Base
   def self.create_event(event)
     event.delete_if { |k, | k.to_s.ends_with?("_ems_ref") }
 
-    new_event = EmsEvent.create(event) unless EmsEvent.exists?(
-      {
+    unless EmsEvent.exists?(
         :event_type => event[:event_type],
-        :timestamp => event[:timestamp].to_time,
-        :chain_id => event[:chain_id],
-        :ems_id => event[:ems_id]
-      }
-    )
-    new_event.handle_event if new_event
-    return new_event
+        :timestamp  => event[:timestamp].to_time,
+        :chain_id   => event[:chain_id],
+        :ems_id     => event[:ems_id]
+      )
+
+      event[:miq_event_id] = EmsEventMap.map_miq_event_id(event[:event_type])
+      new_event = EmsEvent.create(event)
+
+      new_event.handle_event if new_event
+      new_event
+    end
   end
 
   def self.create_completed_event(event, orig_task=nil)
