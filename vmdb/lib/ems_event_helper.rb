@@ -9,9 +9,7 @@ class EmsEventHelper
     before_handle
 
     handle_event
-    #record_blackbox_event
     handle_alert_event
-    handle_alarm_event
     handle_automation_event
 
     after_handle
@@ -140,72 +138,4 @@ class EmsEventHelper
   def handle_alert_event
     handle_step("policy" => ["src_vm", @event.event_type]) if MiqAlert.event_alertable?(@event.event_type)
   end
-
-  def handle_alarm_event
-    # TODO:
-    # => Figure out the target - ems, custer, host, vm for event
-    # => Get alarm MOR and EMS
-    # => Find alerts that match EMS and alarm MOR - Not sure if this should be done here or in alert model from queue
-    return unless @event.event_type == "AlarmStatusChangedEvent"
-    return unless @event.full_data && @event.full_data["to"] = "red"
-
-    $log.info("MIQ(EmsEventHandler-handle_alarm_event) event: [#{@event.attributes.inspect}]")
-    $log.info("MIQ(EmsEventHandler-handle_alarm_event) event.full_data: [#{@event.full_data.inspect}]")
-    ems_id = @event.ems_id
-    target = nil
-    [:vm, :host].each do |name|
-      target = @event.send(name)
-      break if target
-    end
-    alarm_mor = @event.full_data.fetch_path("alarm", "alarm") unless @event.full_data.nil?
-
-    if alarm_mor.nil? || target.nil? || ems_id.nil?
-      $log.warn "MIQ(EmsEventHandler-handle_alarm_event) Alarm Event missing data required for evaluating Alerts, skipping. Full data: [#{@event.full_data.inspect}]"
-      return
-    end
-    alarm_event = "#{@event.event_type}_#{ems_id}_#{alarm_mor}"
-    MiqEvent.raise_evm_alert_event_queue(target, alarm_event)
-  end
-
-  # def record_blackbox_event(recordSrc=true, recordDest=true)
-  #   if recordSrc or recordDest
-  #     if @srcVm.nil?
-  #       @srcVm = Vm.find_by_id(self.src_vm_id) if self.src_vm_id
-  #       @srcVm = Vm.find_by_path(self.src_vm_location) if @srcVm.nil? and self.src_vm_location
-  #     end
-  #
-  #     if @destVm.nil?
-  #       @destVm = Vm.find_by_id(self.dest_vm_id) if self.dest_vm_id
-  #       @destVm = Vm.find_by_path(self.dest_vm_location) if @destVm.nil? and self.dest_vm_location
-  #     end
-  #
-  #     if recordSrc and @srcVm
-  #       # Using strings as keys here as self.attributes returns a hash keyed on strings
-  #       eventData = {
-  #         "table_name"  => VmCfgmgtEvent.table_name,
-  #         "status"      => "ok",
-  #         "src_vm_guid" => @srcVm.guid
-  #       }
-  #       eventData["dest_vm_guid"] = @destVm.guid if @destVm
-  #       eventData.merge!(self.attributes)
-  #
-  #       @srcVm.record_blackbox_event(eventData)
-  #     end
-  #
-  #     if recordDest and @destVm
-  #       # Using strings as keys here as self.attributes returns a hash keyed on strings
-  #       eventData = {
-  #         "table_name"   => VmCfgmgtEvent.table_name,
-  #         "status"       => "ok",
-  #         "dest_vm_guid" => @destVm.guid
-  #       }
-  #       eventData["src_vm_guid"] = @srcVm.guid if @srcVm
-  #       eventData.merge!(self.attributes)
-  #
-  #       @destVm.record_blackbox_event(eventData)
-  #     end
-  #   end
-  #
-  #   @srcVm = @destVm = nil
-  # end
 end
