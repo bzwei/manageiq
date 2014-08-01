@@ -81,6 +81,10 @@ class EmsAmazon < EmsCloud
     @sqs ||= connect(:service => "SQS")
   end
 
+  def cloud_formation
+    @cfn ||= connect(:service => "CloudFormation")
+  end
+
   #
   # Operations
   #

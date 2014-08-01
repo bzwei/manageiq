@@ -25,7 +25,17 @@ module EmsRefresh::SaveInventory
 
     child_keys = [:operating_system, :hardware, :custom_attributes, :snapshots]
     extra_infra_keys = [:host, :ems_cluster, :storage, :storages, :power_state, :parent_vm]
-    extra_cloud_keys = [:flavor, :availability_zone, :cloud_tenant, :cloud_network, :cloud_subnet, :security_groups, :key_pairs]
+    extra_cloud_keys = [
+      :flavor,
+      :availability_zone,
+      :cloud_tenant,
+      :cloud_stack,
+      :cloud_network,
+      :cloud_subnet,
+      :security_groups,
+      :key_pairs
+    ]
+
     remove_keys = child_keys + extra_infra_keys + extra_cloud_keys
 
     # Query for all of the Vms once across all EMSes, to handle any moving VMs
@@ -49,6 +59,7 @@ module EmsRefresh::SaveInventory
       h[:cloud_network_id]     = key_backup.fetch_path(:cloud_network, :id)
       h[:cloud_subnet_id]      = key_backup.fetch_path(:cloud_subnet, :id)
       h[:cloud_tenant_id]      = key_backup.fetch_path(:cloud_tenant, :id)
+      h[:cloud_stack_id]       = key_backup.fetch_path(:cloud_stack, :id)
 
       begin
         raise MiqException::MiqIncompleteData if h[:invalid]

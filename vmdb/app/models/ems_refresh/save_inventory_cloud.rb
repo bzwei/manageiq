@@ -5,6 +5,8 @@
 #   - availability_zones
 #   - cloud_tenants
 #   - key_pairs
+#   - cloud_templates
+#   - cloud_stacks
 #   - cloud_networks
 #     - cloud_subnets
 #   - security_groups
@@ -47,6 +49,8 @@ module EmsRefresh::SaveInventoryCloud
       :availability_zones,
       :cloud_tenants,
       :key_pairs,
+      :cloud_templates,
+      :cloud_stacks,
       :cloud_networks,
       :security_groups,
       :cloud_volumes,
@@ -166,10 +170,18 @@ module EmsRefresh::SaveInventoryCloud
 
     hashes.each do |h|
       h[:cloud_tenant_id] = h.fetch_path(:cloud_tenant, :id)
+      h[:cloud_stack_id] = h.fetch_path(:cloud_stack, :id)
     end
 
-    self.save_inventory_multi(:cloud_networks, CloudNetwork, ems, hashes, deletes, :ems_ref, :cloud_subnets, :cloud_tenant)
-    self.store_ids_for_new_records(ems.cloud_networks, hashes, :ems_ref)
+    save_inventory_multi(:cloud_networks,
+                         CloudNetwork,
+                         ems,
+                         hashes,
+                         deletes,
+                         :ems_ref,
+                         :cloud_subnets,
+                         [:cloud_tenant, :cloud_stack])
+    store_ids_for_new_records(ems.cloud_networks, hashes, :ems_ref)
   end
 
   def save_cloud_subnets_inventory(cloud_network, hashes)
@@ -200,10 +212,17 @@ module EmsRefresh::SaveInventoryCloud
     hashes.each do |h|
       h[:cloud_network_id] = h.fetch_path(:cloud_network, :id)
       h[:cloud_tenant_id]  = h.fetch_path(:cloud_tenant, :id)
+      h[:cloud_stack_id]   = h.fetch_path(:cloud_stack, :id)
     end
 
-    self.save_inventory_multi(:security_groups, SecurityGroup, ems, hashes, deletes, :ems_ref, :firewall_rules, [:cloud_network, :cloud_tenant])
-    self.store_ids_for_new_records(ems.security_groups, hashes, :ems_ref)
+    save_inventory_multi(:security_groups,
+                         SecurityGroup,
+                         ems, hashes,
+                         deletes,
+                         :ems_ref,
+                         :firewall_rules,
+                         [:cloud_network, :cloud_tenant, :cloud_stack])
+    store_ids_for_new_records(ems.security_groups, hashes, :ems_ref)
 
     # Reset the source_security_group_id for the firewall rules after all
     #   security groups have been saved and ids obtained.
@@ -235,6 +254,78 @@ module EmsRefresh::SaveInventoryCloud
 
     self.save_inventory_multi(:floating_ips, FloatingIp, ems, hashes, deletes, :ems_ref, nil, [:vm, :cloud_tenant])
     self.store_ids_for_new_records(ems.floating_ips, hashes, :ems_ref)
+  end
+
+  def save_cloud_templates_inventory(_ems, hashes, _target = nil)
+    return if hashes.nil?
+
+    # cloud_template does not belong to an ems;
+    # only to create new if necessary, but not to update existing template
+    hashes.each do |h|
+      record = CloudTemplate.find_or_create_by_template(h, false)
+      h[:id] = record.id
+    end
+  end
+
+  def save_cloud_stacks_inventory(ems, hashes, target = nil)
+    return if hashes.nil?
+    target = ems if target.nil?
+
+    ems.cloud_stacks(true)
+    deletes = if target.kind_of?(ExtManagementSystem)
+      ems.cloud_stacks.dup
+    else
+      []
+    end
+
+    hashes.each do |h|
+      h[:cloud_template_id] = h.fetch_path(:cloud_template, :id)
+    end
+
+    save_inventory_multi(:cloud_stacks,
+                         CloudStack,
+                         ems,
+                         hashes,
+                         deletes,
+                         :ems_ref,
+                         [:cloud_stack_parameters, :cloud_stack_outputs, :cloud_stack_resources],
+                         [:nest_parent, :cloud_template])
+    store_ids_for_new_records(ems.cloud_stacks, hashes, :ems_ref)
+
+    hashes.each do |h|
+      if h.key?(:nest_parent)
+        stack = CloudStack.find(h[:id])
+        parent = CloudStack.find(h.fetch_path(:nest_parent, :id))
+        stack.parent = parent
+        stack.save!
+      end
+    end
+  end
+
+  def save_cloud_stack_parameters_inventory(cloud_stack, hashes)
+    return if hashes.nil?
+    deletes = cloud_stack.cloud_stack_parameters(true).dup
+
+    save_inventory_multi(:cloud_stack_parameters, CloudStackParameter, cloud_stack, hashes, deletes, :name)
+  end
+
+  def save_cloud_stack_outputs_inventory(cloud_stack, hashes)
+    return if hashes.nil?
+    deletes = cloud_stack.cloud_stack_outputs(true).dup
+
+    save_inventory_multi(:cloud_stack_outputs, CloudStackOutput, cloud_stack, hashes, deletes, :key)
+  end
+
+  def save_cloud_stack_resources_inventory(cloud_stack, hashes)
+    return if hashes.nil?
+    deletes = cloud_stack.cloud_stack_resources(true).dup
+
+    save_inventory_multi(:cloud_stack_resources,
+                         CloudStackResource,
+                         cloud_stack,
+                         hashes,
+                         deletes,
+                         [:physical_resource_id, :logical_resource_id])
   end
 
   def save_cloud_volumes_inventory(ems, hashes, target = nil)
