@@ -22,10 +22,25 @@ class CloudStack < ActiveRecord::Base
   #       an Object which responds to #to_json and returns the template.
   #   :parameters (Hash) - A hash that specifies the input parameters of the new stack.
   def update_stack_in_cloud(options)
-    ext_management_system.cloud_formation.stacks[name].update(options) if ext_management_system.is_a? EmsAmazon
+    if ext_management_system.is_a? EmsAmazon
+      ext_management_system.cloud_formation.stacks[name].update(options)
+    elsif ext_management_system.is_a? EmsOpenstack
+      orchestration_service.update_stack(ems_ref, name, options)
+    end
   end
 
   def delete_stack_in_cloud
-    ext_management_system.cloud_formation.stacks[name].delete if ext_management_system.is_a? EmsAmazon
+    if ext_management_system.is_a? EmsAmazon
+      ext_management_system.cloud_formation.stacks[name].delete
+    elsif ext_management_system.is_a? EmsOpenstack
+      orchestration_service.delete_stack(name, ems_ref)
+    end
+  end
+
+  private
+  def orchestration_service()
+    stacks = ext_management_system.openstack_handle.orchestration_service.stacks_for_accessible_tenants
+    stack = stacks.find { |s| s.id == ems_ref}
+    stack.service
   end
 end

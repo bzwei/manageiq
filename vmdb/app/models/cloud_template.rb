@@ -30,7 +30,12 @@ class CloudTemplate < ActiveRecord::Base
   #   :parameters (Hash) - A hash that specifies the input parameters of the new stack.
   #   :timeout (Integer) - The number of minutes that may pass before the stack creation fails.
   #                        If :disable_rollback is false, the stack will be rolled back.
-  def deploy(ems, stack_name, options = {})
-    ems.cloud_formation.stacks.create(stack_name, template, options) if ems.is_a? EmsAmazon
+  def deploy(ems, stack_name, options = {}, tenant_name = nil)
+    if ems.is_a? EmsAmazon
+      ems.cloud_formation.stacks.create(stack_name, template, options)
+    elsif ems.is_a? EmsOpenstack
+      options = {:template => template}.merge(options)
+      ems.openstack_handle.orchestration_service(tenant_name).create_stack(stack_name, options)
+    end
   end
 end
