@@ -31,6 +31,10 @@ class CloudTemplate < ActiveRecord::Base
   #   :timeout (Integer) - The number of minutes that may pass before the stack creation fails.
   #                        If :disable_rollback is false, the stack will be rolled back.
   def deploy(ems, stack_name, options = {})
-    ems.cloud_formation.stacks.create(stack_name, template, options) if ems.is_a? EmsAmazon
+    if ems.is_a? EmsAmazon
+      ems.cloud_formation.stacks.create(stack_name, template, options)
+    elsif ems.is_a? EmsOpenstack
+      ems.openstack_handle.orchestration_service.create_stack(stack_name, {:template => template}.merge(options))
+    end
   end
 end
