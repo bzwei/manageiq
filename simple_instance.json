@@ -1,0 +1,25 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description": "Simple template to deploy a single compute instance",
+
+  "Parameters": {
+    "InstanceName": {
+      "Description": "Name of instance",
+      "Type": "String"
+    }
+  },
+
+
+  "Resources": {
+    "MyInstance": {
+      "Type": "OS::Nova::Server",
+      "Properties": {
+        "name": {"Ref": "InstanceName"},
+        "image": "cirros", 
+        "flavor": "m1.small"
+      }
+    }
+  }
+}
+
