@@ -15,12 +15,13 @@ module OpenstackHandle
     }
 
     SERVICE_NAME_MAP = {
-      "Compute"  => :nova,
-      "Network"  => :neutron,
-      "Image"    => :glance,
-      "Volume"   => :cinder,
-      "Storage"  => :swift,
-      "Metering" => :ceilometer
+      "Compute"       => :nova,
+      "Network"       => :neutron,
+      "Image"         => :glance,
+      "Volume"        => :cinder,
+      "Storage"       => :swift,
+      "Metering"      => :ceilometer,
+      "Orchestration" => :orchestration
     }
 
     def self.raw_connect(username, password, auth_url, service = "Compute", extra_opts = nil)
@@ -162,6 +163,19 @@ module OpenstackHandle
 
     def storage_service_name
       service_name("Storage")
+    end
+
+    def orchestration_service(tenant_name = nil)
+      connect(:service => "Orchestration", :tenant_name => tenant_name)
+    end
+    alias_method :connect_orchestration, :orchestration_service
+
+    def detect_orchestration_service(tenant_name = nil)
+      detect_service("Orchestration", tenant_name)
+    end
+
+    def orchestration_service_name
+      service_name("Orchestration")
     end
 
     def detect_service(service, tenant_name = nil)
