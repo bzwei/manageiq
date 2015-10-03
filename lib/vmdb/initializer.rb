@@ -4,7 +4,7 @@ module Vmdb
       _log.info "- Program Name: #{$PROGRAM_NAME}, PID: #{Process.pid}, ENV['MIQ_GUID']: #{ENV['MIQ_GUID']}, ENV['EVMSERVER']: #{ENV['EVMSERVER']}"
 
       if MiqEnvironment::Process.is_web_server_worker?
-        require 'haml-rails'
+        require 'hamlit-rails'
 
         # Make these constants globally available
         ::UiConstants
@@ -39,20 +39,16 @@ module Vmdb
       # Then start a UiWorker, so that it can be monitored
       ####################################################
       if MiqEnvironment::Process.is_ui_worker_via_evm_server?
-        require "#{Rails.root}/lib/workers/ui_worker.rb"
-
         # Do all the SQL worker preparation in the main thread
-        ui_worker = UiWorker.new.prepare
+        ui_worker = MiqUiWorker::Runner.new.prepare
 
         # The heartbeating will be done in a separate thread
         Thread.new { ui_worker.run }
       end
 
       if MiqEnvironment::Process.is_web_service_worker_via_evm_server?
-        require "#{Rails.root}/lib/workers/web_service_worker.rb"
-
         # Do all the SQL worker preparation in the main thread
-        ws_worker = WebServiceWorker.new.prepare
+        ws_worker = MiqWebServiceWorker::Runner.new.prepare
 
         # The heartbeating will be done in a separate thread
         Thread.new { ws_worker.run }

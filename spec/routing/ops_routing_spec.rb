@@ -73,6 +73,7 @@ describe "routing for OpsController" do
     rbac_role_field_changed
     rbac_roles_list
     rbac_tags_edit
+    rbac_tenants_list
     rbac_user_edit
     rbac_user_field_changed
     rbac_users_list
@@ -92,6 +93,7 @@ describe "routing for OpsController" do
     settings_update
     show
     show_product_update
+    smartproxy_affinity_field_changed
     tag_edit_form_field_changed
     tl_chooser
     tree_autoload_dynatree

@@ -4,9 +4,16 @@ class MiqProvisionWorkflow < MiqRequestWorkflow
   end
 
   def self.class_for_platform(platform)
-    "MiqProvision#{platform.classify}Workflow".safe_constantize ||
-      "ManageIQ::Providers::#{platform.classify}::CloudManager::ProvisionWorkflow".safe_constantize ||
-      "ManageIQ::Providers::#{platform.classify}::InfraManager::ProvisionWorkflow".constantize
+    classy = platform.classify
+
+    if classy =~ /(.*)Infra/
+      "MiqProvision#{classy}Workflow".safe_constantize ||
+        "ManageIQ::Providers::#{$1}::InfraManager::ProvisionWorkflow".constantize
+    else
+      "MiqProvision#{classy}Workflow".safe_constantize ||
+        "ManageIQ::Providers::#{classy}::CloudManager::ProvisionWorkflow".safe_constantize ||
+        "ManageIQ::Providers::#{classy}::InfraManager::ProvisionWorkflow".constantize
+    end
   end
 
   def self.class_for_source(source_or_id)
@@ -47,7 +54,7 @@ class MiqProvisionWorkflow < MiqRequestWorkflow
     supports_pxe? || supports_iso? || supports_cloud_init?
   end
 
-  def continue_request(values, _requester_id)
+  def continue_request(values)
     return false unless validate(values)
 
     exit_pre_dialog if @running_pre_dialog
@@ -58,11 +65,5 @@ class MiqProvisionWorkflow < MiqRequestWorkflow
     set_default_values
 
     true
-  end
-
-  def update_request(request, values, requester_id, target_class, event_name, event_message)
-    request = request.kind_of?(MiqRequest) ? request : MiqRequest.find(request)
-    request.src_vm_id = request.get_option(:src_vm_id)
-    super
   end
 end

@@ -24,29 +24,36 @@ module MigrationHelper
   end
 
   def add_trigger_function(name, body)
+    quoted_name = connection.quote_table_name(name)
+    quoted_body = connection.quote("BEGIN\n#{body}\nEND;\n")
+
     connection.execute <<-EOSQL, 'Create trigger function'
-      CREATE OR REPLACE FUNCTION #{name}()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        #{body}
-      END;
-      $$
+      CREATE OR REPLACE FUNCTION #{quoted_name}()
+      RETURNS TRIGGER AS #{quoted_body}
       LANGUAGE plpgsql;
     EOSQL
   end
 
   def add_trigger_hook(direction, name, table, function)
+    quoted_name = connection.quote_column_name(name)
+    quoted_table = connection.quote_table_name(table)
+    quoted_function = connection.quote_table_name(function)
+    safe_direction = direction.downcase == 'before' ? 'BEFORE' : 'AFTER'
+
     connection.execute <<-EOSQL, 'Create trigger'
-      CREATE TRIGGER #{name}
-      #{direction.to_s.upcase} INSERT ON #{table}
-      FOR EACH ROW EXECUTE PROCEDURE #{function}();
+      CREATE TRIGGER #{quoted_name}
+      #{safe_direction} INSERT ON #{quoted_table}
+      FOR EACH ROW EXECUTE PROCEDURE #{quoted_function}();
     EOSQL
   end
 
   def drop_trigger(table, name)
+    quoted_name = connection.quote_column_name(name)
+    quoted_table = connection.quote_table_name(table)
+
     say_with_time("drop_trigger(:#{table}, :#{name})") do
-      connection.execute("DROP TRIGGER IF EXISTS #{name} ON #{table};", 'Drop trigger')
-      connection.execute("DROP FUNCTION IF EXISTS #{name}();", 'Drop trigger function')
+      connection.execute("DROP TRIGGER IF EXISTS #{quoted_name} ON #{quoted_table};", 'Drop trigger')
+      connection.execute("DROP FUNCTION IF EXISTS #{quoted_name}();", 'Drop trigger function')
     end
   end
 
@@ -55,18 +62,60 @@ module MigrationHelper
   #
 
   def add_table_inheritance(table, inherit_from, options = {})
+    quoted_table = connection.quote_table_name(table)
+    quoted_inherit = connection.quote_table_name(inherit_from)
+    quoted_constraint = connection.quote_column_name("#{table}_inheritance_check")
+
     say_with_time("add_table_inheritance(:#{table}, :#{inherit_from})") do
       conditions = sanitize_sql_for_conditions(options[:conditions], table)
-      connection.execute("ALTER TABLE #{table} ADD CONSTRAINT #{table}_inheritance_check CHECK (#{conditions})", 'Add inheritance check constraint')
-      connection.execute("ALTER TABLE #{table} INHERIT #{inherit_from}", 'Add table inheritance')
+      connection.execute("ALTER TABLE #{quoted_table} ADD CONSTRAINT #{quoted_constraint} CHECK (#{conditions})", 'Add inheritance check constraint')
+      connection.execute("ALTER TABLE #{quoted_table} INHERIT #{quoted_inherit}", 'Add table inheritance')
     end
   end
 
   def drop_table_inheritance(table, inherit_from)
+    quoted_table = connection.quote_table_name(table)
+    quoted_inherit = connection.quote_table_name(inherit_from)
+    quoted_constraint = connection.quote_column_name("#{table}_inheritance_check")
+
     say_with_time("drop_table_inheritance(:#{table}, :#{inherit_from})") do
-      connection.execute("ALTER TABLE #{table} DROP CONSTRAINT #{table}_inheritance_check", 'Drop inheritance check constraint')
-      connection.execute("ALTER TABLE #{table} NO INHERIT #{inherit_from}", 'Drop table inheritance')
+      connection.execute("ALTER TABLE #{quoted_table} DROP CONSTRAINT #{quoted_constraint}", 'Drop inheritance check constraint')
+      connection.execute("ALTER TABLE #{quoted_table} NO INHERIT #{quoted_inherit}", 'Drop table inheritance')
     end
+  end
+
+  def rename_class_references(mapping)
+    reversible do |dir|
+      dir.down { mapping = mapping.invert }
+
+      condition_list = mapping.keys.map { |s| connection.quote(s) }.join(',')
+      when_clauses = mapping.map { |before, after| "WHEN #{connection.quote before} THEN #{connection.quote after}" }.join(' ')
+
+      type_columns_query = <<-SQL
+        SELECT pg_class.oid::regclass::text, quote_ident(attname)
+        FROM pg_class JOIN pg_attribute ON pg_class.oid = attrelid
+        WHERE relkind = 'r'
+          AND (attname = 'type' OR attname LIKE '%\\_type')
+          AND atttypid IN ('text'::regtype, 'varchar'::regtype)
+        ORDER BY relname, attname
+      SQL
+
+      select_rows(type_columns_query).each do |quoted_table, quoted_column|
+        execute <<-SQL
+          UPDATE #{quoted_table}
+          SET #{quoted_column} = CASE #{quoted_column} #{when_clauses} END
+          WHERE #{quoted_column} IN (#{condition_list})
+        SQL
+      end
+    end
+  end
+
+  # Fixes issues where migrations were named incorrectly due to issues with the
+  #   naming of 20150823120001_namespace_ems_openstack_availability_zones_null.rb
+  def previously_migrated_as?(bad_date)
+    connection.exec_delete(
+      "DELETE FROM schema_migrations WHERE version = #{connection.quote(bad_date)}"
+    ) > 0
   end
 end
 

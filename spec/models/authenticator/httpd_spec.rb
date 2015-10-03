@@ -47,7 +47,7 @@ describe Authenticator::Httpd do
     let(:request) do
       env = {}
       headers.each do |k, v|
-        env["HTTP_#{k.upcase.gsub '-', '_'}"] = v if v
+        env["HTTP_#{k.upcase.tr '-', '_'}"] = v if v
       end
       ActionDispatch::Request.new(Rack::MockRequest.env_for("/", env))
     end
@@ -127,8 +127,8 @@ describe Authenticator::Httpd do
       end
     end
 
-    context "with mismatched username" do
-      let(:headers) { super().merge('X-Remote-User' => 'eve') }
+    context "with invalid user" do
+      let(:headers) { super().except('X-Remote-User') }
 
       it "fails" do
         expect(-> { authenticate }).to raise_error(MiqException::MiqEVMLoginError, "Authentication failed")
@@ -186,8 +186,10 @@ describe Authenticator::Httpd do
 
     context "with unknown username" do
       let(:username) { 'bob' }
-      let(:headers) { super().merge('X-Remote-User-FullName' => 'Bob Builderson',
-                                    'X-Remote-User-Email'    => 'bob@example.com') }
+      let(:headers) do
+        super().merge('X-Remote-User-FullName' => 'Bob Builderson',
+                      'X-Remote-User-Email'    => 'bob@example.com')
+      end
 
       context "using local authorization" do
         it "fails" do

@@ -92,9 +92,7 @@
     - if (!@in_a_form && @record && ![:diagnostics_tree, :savedreports_tree,:svccat_tree].include?(x_active_tree)) || @collapse_c_cell
       #{layoutb_name}.cells("c").collapse();
 
-    - if (@layout == "chargeback" && (x_node == "root"                                               ||
-    -     x_active_tree == :cb_assignments_tree || (x_active_tree == :cb_reports_tree && !@report))) ||
-    -    ["miq_capacity_bottlenecks"].include?(@layout)
+    - if (@layout == "chargeback" && (x_node == "root" || x_active_tree == :cb_assignments_tree || (x_active_tree == :cb_reports_tree && !@report))) || ["miq_capacity_bottlenecks"].include?(@layout)
       #{layoutb_name}.cells("a").collapse();
 
     - if show_advanced_search?
@@ -127,3 +125,23 @@
     = javascript_show("control_searchbar")
     = javascript_focus("search_text")
   };
+
+:javascript
+  ManageIQ.layout.toolbar = {
+    hide: function() { #{layoutb_name}.cells('a').collapse(); },
+    show: function() { #{layoutb_name}.cells('a').expand(); },
+    height: function(v) { #{layoutb_name}.cells('a').setHeight(v); }
+  };
+
+  ManageIQ.layout.content = {
+    hide: function() { #{layoutb_name}.cells('b').collapse(); },
+    show: function() { #{layoutb_name}.cells('b').expand(); },
+    height: function(v) { #{layoutb_name}.cells('b').setHeight(v); },
+    title: function(v) { #{layoutb_name}.cells('b').setText(v); }
+  };
+
+  ManageIQ.layout.paginator = {
+    hide: function() { #{layoutb_name}.cells('c').collapse(); },
+    show: function() { #{layoutb_name}.cells('c').expand(); },
+    height: function(v) { #{layoutb_name}.cells('c').setHeight(v); }
+  }

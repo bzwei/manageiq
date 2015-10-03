@@ -7,11 +7,14 @@ require_relative '../../MiqVm/MiqVm'
 #
 
 class MiqOpenStackInstance
-  SUPPORTED_METHODS = [:vmRootTrees, :extract, :diskInitErrors]
+  attr_reader :vmConfigFile
+
+  SUPPORTED_METHODS = [:rootTrees, :extract, :diskInitErrors]
 
   def initialize(instance_id, openstack_handle)
     @instance_id      = instance_id
     @openstack_handle = openstack_handle
+    @vmConfigFile     = instance_id
   end
 
   def compute_service
@@ -144,7 +147,7 @@ class MiqOpenStackInstance
     tot = 0
     tf = MiqTempfile.new(iname, :encoding => 'ascii-8bit')
     $log.debug "#{log_prefix}: saving image to #{tf.path}"
-    response_block = lambda do |buf, rem, sz|
+    response_block = lambda do |buf, _rem, sz|
       tf.write buf
       tot += buf.length
       $log.debug "#{log_prefix}: response_block: #{tot} bytes written of #{sz}"

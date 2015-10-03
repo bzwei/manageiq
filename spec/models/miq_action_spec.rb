@@ -1,8 +1,6 @@
 require "spec_helper"
 
 describe MiqAction do
-  before(:each) { MiqRegion.seed }
-
   context "#action_custom_automation" do
     before(:each) do
       @vm   = FactoryGirl.create(:vm_vmware)
@@ -50,18 +48,18 @@ describe MiqAction do
 
     res.should be_kind_of EmsEvent
     res.host_id.should == host.id
-    res.ems_id.should  == ems.id
+    res.ems_id.should == ems.id
   end
 
   context "#raise_automation_event" do
     before(:each) do
       @vm   = FactoryGirl.create(:vm_vmware)
-      FactoryGirl.create(:miq_event, :name => "raise_automation_event")
-      FactoryGirl.create(:miq_event, :name => "vm_start")
+      FactoryGirl.create(:miq_event_definition, :name => "raise_automation_event")
+      FactoryGirl.create(:miq_event_definition, :name => "vm_start")
       FactoryGirl.create(:miq_action, :name => "raise_automation_event")
       @action = MiqAction.find_by_name("raise_automation_event")
       @action.should_not be_nil
-      @event = MiqEvent.find_by_name("vm_start")
+      @event = MiqEventDefinition.find_by_name("vm_start")
       @event.should_not be_nil
       @aevent = {
         :vm     => @vm,
@@ -74,13 +72,13 @@ describe MiqAction do
     it "synchronous" do
       MiqAeEvent.should_receive(:raise_synthetic_event).with(@event.name, @aevent).once
       MiqQueue.should_receive(:put).never
-      @action.action_raise_automation_event(@action, @vm, {:vm => @vm, :event => @event, :policy => @policy, :synchronous => true } )
+      @action.action_raise_automation_event(@action, @vm, :vm => @vm, :event => @event, :policy => @policy, :synchronous => true)
     end
 
     it "synchronous, not passing vm in inputs hash" do
       MiqAeEvent.should_receive(:raise_synthetic_event).with(@event.name, @aevent).once
       MiqQueue.should_receive(:put).never
-      @action.action_raise_automation_event(@action, @vm, {:vm => nil, :event => @event, :policy => @policy, :synchronous => true } )
+      @action.action_raise_automation_event(@action, @vm, :vm => nil, :event => @event, :policy => @policy, :synchronous => true)
     end
 
     it "asynchronous" do
@@ -96,7 +94,7 @@ describe MiqAction do
         :role        => "automate"
       }
       MiqQueue.should_receive(:put).with(q_options).once
-      @action.action_raise_automation_event(@action, @vm, {:vm => @vm, :event => @event, :policy => @policy, :synchronous => false })
+      @action.action_raise_automation_event(@action, @vm, :vm => @vm, :event => @event, :policy => @policy, :synchronous => false)
     end
   end
 
@@ -125,12 +123,12 @@ describe MiqAction do
   context "#action_vm_retire" do
     before do
       @vm     = FactoryGirl.create(:vm_vmware)
-      @event  = FactoryGirl.create(:miq_event, :name => "assigned_company_tag")
-      @action = FactoryGirl.create(:miq_action, :name => "vm_retire") 
+      @event  = FactoryGirl.create(:miq_event_definition, :name => "assigned_company_tag")
+      @action = FactoryGirl.create(:miq_action, :name => "vm_retire")
     end
 
     it "synchronous" do
-      input  = { :synchronous => true }
+      input  = {:synchronous => true}
 
       Timecop.freeze do
         date   = Time.now.utc - 1.day
@@ -144,7 +142,7 @@ describe MiqAction do
     end
 
     it "asynchronous" do
-      input = { :synchronous => false }
+      input = {:synchronous => false}
       zone  = 'Test Zone'
       @vm.stub(:my_zone => zone)
 
@@ -154,7 +152,7 @@ describe MiqAction do
         @action.action_vm_retire(@action, @vm, input)
         MiqQueue.count.should == 1
         msg = MiqQueue.first
-        msg.class_name.should  == @vm.class.name
+        msg.class_name.should == @vm.class.name
         msg.method_name.should == 'retire'
         msg.args.should == [[@vm], :date => date]
         msg.zone.should == zone

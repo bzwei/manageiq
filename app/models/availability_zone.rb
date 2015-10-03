@@ -22,13 +22,13 @@ class AvailabilityZone < ActiveRecord::Base
   virtual_column :total_vms, :type => :integer, :uses => :vms
 
   def self.available
-    where(arel_table[:type].not_eq("AvailabilityZoneOpenstackNull"))
+    where(arel_table[:type].not_eq("ManageIQ::Providers::Openstack::CloudManager::AvailabilityZoneNull"))
   end
 
   PERF_ROLLUP_CHILDREN = :vms
 
-  def perf_rollup_parent(interval_name=nil)
-    self.ext_management_system unless interval_name == 'realtime'
+  def perf_rollup_parents(interval_name = nil)
+    [ext_management_system].compact unless interval_name == 'realtime'
   end
 
   def total_vms
@@ -36,16 +36,11 @@ class AvailabilityZone < ActiveRecord::Base
   end
 
   def my_zone
-    ems = self.ext_management_system
+    ems = ext_management_system
     ems ? ems.my_zone : MiqServer.my_zone
   end
 
-  def event_where_clause(assoc=:ems_events)
-    case assoc.to_sym
-    when :ems_events
-      ["availability_zone_id = ?", self.id]
-    when :policy_events
-      ["availability_zone_id = ?", self.id]
-    end
+  def event_where_clause(assoc = :ems_events)
+    ["#{events_table_name(assoc)}.availability_zone_id = ?", id]
   end
 end

@@ -20,13 +20,17 @@ db: ContainerGroup
 # Columns to fetch from the main table
 cols:
 - name
+- ready_condition_status
+- phase
 - restart_policy
 - dns_policy
-- ext_management_system
 
 # Included tables (joined, has_one, has_many) and columns
 include:
   container_project:
+    columns:
+    - name
+  ext_management_system:
     columns:
     - name
 
@@ -37,18 +41,22 @@ include_for_find:
 # Order of columns (from all tables)
 col_order: 
 - name
+- ext_management_system.name
 - container_project.name
+- ready_condition_status
+- phase
 - restart_policy
 - dns_policy
-- ext_management_system
 
 # Column titles, in order
 headers:
 - Name
+- Provider
 - Project Name
+- Ready
+- Phase
 - Restart Policy
 - DNS Policy
-- Provider
 
 # Condition(s) string for the SQL query
 conditions: 
@@ -59,9 +67,12 @@ order: Ascending
 # Columns to sort the report on, in order
 sortby:
 - name
+- ext_management_system.name
 - container_project.name
+- phase
 - restart_policy
 - dns_policy
+- ready_condition_status
 
 # Group rows (y=yes,n=no,c=count)
 group: n

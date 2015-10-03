@@ -1,6 +1,6 @@
 class ChartsLayoutService
   def self.layout(perf_record, charts_folder, layout, fname = nil)
-    self.new(perf_record, charts_folder, layout, fname).layout
+    new(perf_record, charts_folder, layout, fname).layout
   end
 
   def initialize(perf_record, charts_folder, layout, fname = nil)
@@ -26,13 +26,13 @@ class ChartsLayoutService
   private
 
   def build_charts
-    YAML::load(File.open(find_chart_path))
+    YAML.load(File.open(find_chart_path))
   end
 
   def find_chart_path
     if @fname
       # First check if there is file for specific class of the @perf_record
-      path = chart_path(@layout, @perf_record.class.name)
+      path = chart_path(@layout, @perf_record.class.name.gsub(/::/, '_'))
       return path if File.exist?(path)
       # Fallback to fname, which is usually base class of the @perf_record
       chart_path(@layout, @fname)

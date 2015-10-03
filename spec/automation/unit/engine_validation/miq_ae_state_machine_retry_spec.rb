@@ -18,6 +18,11 @@ describe "MiqAeStateMachineRetry" do
                         :instance_name    => @root_instance,
                         :automate_message => 'create'}
     MiqServer.stub(:my_zone).and_return('default')
+    clear_domain
+  end
+
+  def clear_domain
+    MiqAeDomain.find_by_name(@domain).try(:destroy)
   end
 
   def perpetual_retry_script
@@ -137,7 +142,7 @@ describe "MiqAeStateMachineRetry" do
       expect(ws).to be
     end
 
-    Timecop.travel(@max_time*2 + 2) do
+    Timecop.travel(@max_time * 2 + 2) do
       status, _message, ws = deliver_ae_request_from_queue
       expect(status).not_to be
     end

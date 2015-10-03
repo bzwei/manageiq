@@ -1,17 +1,20 @@
 require "spec_helper"
 
 describe Authentication do
+  it ".encrypted_columns" do
+    expect(described_class.encrypted_columns).to include('password', 'auth_key')
+  end
+
   context "with miq events seeded" do
     before(:each) do
-      MiqRegion.seed
-      MiqEvent.seed
+      MiqEventDefinition.seed
     end
 
     it "should create the authentication events and event sets" do
       events = %w(ems_auth_changed ems_auth_valid ems_auth_invalid ems_auth_unreachable ems_auth_incomplete ems_auth_error
                   host_auth_changed host_auth_valid host_auth_invalid host_auth_unreachable host_auth_incomplete host_auth_error)
-      events.each { |event| MiqEvent.exists?(:name => event).should be_true }
-      MiqEventSet.exists?(:name => 'auth_validation').should be_true
+      events.each { |event| MiqEventDefinition.exists?(:name => event).should be_true }
+      MiqEventDefinitionSet.exists?(:name => 'auth_validation').should be_true
     end
   end
 
