@@ -124,8 +124,17 @@ class MiqQueue < ApplicationRecord
       _log.info(MiqQueue.format_full_log_msg(msg))
       msg
     else
-      MiqCatchAllWorker.perform_async(options)
+      queue_name = options[:queue_name]
+      queue_name = options[:role] if queue_name == 'generic' && options[:role]
+      MiqCatchAllWorker.set(:queue => queue_name.to_sym).perform_async(options)
     end
+  end
+
+  singleton_class.send(:alias_method, :put_simple, :put)
+
+  def self.put_with_affinity(zone_identifier, options)
+    zone = zone_identifier.try(:my_zone) || MiqServer.my_zone
+    put(options.merge(:zone => zone))
   end
 
   MIQ_QUEUE_GET = <<-EOL
